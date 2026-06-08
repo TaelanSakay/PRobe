@@ -1,0 +1,26 @@
+# Environments and credentials
+.env
+*.pem
+*.key
+private_key.pem
+
+# Python caches and compilations
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# Docker local data
+postgres_data/
+
+# OS specific files
+.DS_Store
+Thumbs.db
