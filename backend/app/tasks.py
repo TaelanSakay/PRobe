@@ -50,6 +50,7 @@ def run_scan(
         get_pr_diff,
         get_file_content,
         parse_diff,
+        post_review,
     )
     from app.scanner import scan_code
 
@@ -101,6 +102,12 @@ def run_scan(
             scan.status = "completed"
             scan.risk_score = 0
             db.commit()
+            try:
+                post_review(
+                    owner, repo, pr_number, head_sha, token, [], 0
+                )
+            except Exception as review_err:
+                logger.warning(f"Failed to post PR review: {review_err}")
             return
 
         # 5. Fetch full content for changed files
@@ -166,6 +173,19 @@ def run_scan(
         scan.risk_score = min(risk_score, 100)
         scan.status = "completed"
         db.commit()
+
+        try:
+            post_review(
+                owner,
+                repo,
+                pr_number,
+                head_sha,
+                token,
+                filtered_findings,
+                scan.risk_score,
+            )
+        except Exception as review_err:
+            logger.warning(f"Failed to post PR review: {review_err}")
 
         logger.info(
             f"[+] Finished scan {scan.id}. Score: {scan.risk_score}. Persisted {len(filtered_findings)} findings."

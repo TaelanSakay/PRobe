@@ -171,6 +171,7 @@ index 0000000..7891011
     with patch("app.github_client.get_installation_token", return_value="fake_token"), \
          patch("app.github_client.get_pr_diff", return_value=mock_diff), \
          patch("app.github_client.get_file_content", side_effect=mock_get_file_content), \
+         patch("app.github_client.post_review") as mock_post_review, \
          patch("app.database.SessionLocal", return_value=db_session):
         
         # Execute Celery task synchronously
@@ -202,3 +203,14 @@ index 0000000..7891011
     rules = [f.rule_id for f in findings]
     assert "hardcoded-secret" in rules
     assert "sql-injection" in rules
+
+    mock_post_review.assert_called_once()
+    args, _ = mock_post_review.call_args
+    owner, repo, pr_number, head_sha, token, findings, risk_score = args
+    assert owner == "acme"
+    assert repo == "app"
+    assert pr_number == 1
+    assert head_sha == "sha99"
+    assert token == "mock_token"
+    assert risk_score == 20
+    assert len(findings) == 2
