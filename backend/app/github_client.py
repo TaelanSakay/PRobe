@@ -243,3 +243,31 @@ def post_review(
         response = client.post(url, headers=headers, json=payload)
         response.raise_for_status()
         return response.json()
+
+
+def post_comment(
+    owner: str,
+    repo: str,
+    pr_number: int,
+    comment_id: int,
+    token: str,
+    body: str,
+) -> Dict[str, Any]:
+    """
+    Post a reply to a pull request review comment thread.
+    Uses POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies.
+    """
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    url = (
+        f"https://api.github.com/repos/{owner}/{repo}/pulls/"
+        f"{pr_number}/comments/{comment_id}/replies"
+    )
+
+    with httpx2.Client() as client:
+        response = client.post(url, headers=headers, json={"body": body})
+        response.raise_for_status()
+        return response.json()
