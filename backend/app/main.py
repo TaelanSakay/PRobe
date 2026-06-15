@@ -3,7 +3,8 @@ import hashlib
 import json
 import logging
 from fastapi import FastAPI, Request, HTTPException, Header, status, Depends
-from sqlalchemy.orm import Session
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session, joinedload
 from app.config import settings
 from app.database import get_db
 from app.models import Repo, Scan, Finding, RepoMemory
@@ -20,6 +21,13 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def verify_signature(payload_bytes: bytes, signature_header: str, secret: str) -> bool:
     """
@@ -170,6 +178,101 @@ def health_check():
         "app": settings.PROJECT_NAME,
         "debug_mode": settings.DEBUG,
     }
+
+
+@app.get("/scans")
+def get_recent_scans(db: Session = Depends(get_db)):
+    scans = (
+        db.query(Scan)
+        .options(joinedload(Scan.repo), joinedload(Scan.findings))
+        .order_by(Scan.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    result = []
+    for s in scans:
+        result.append({
+            "id": s.id,
+            "repo_name": s.repo.name,
+            "owner": s.repo.owner,
+            "repo_id": s.repo_id,
+            "pr_number": s.pr_number,
+            "risk_score": s.risk_score,
+            "status": s.status,
+            "created_at": s.created_at,
+            "finding_count": len(s.findings),
+            "findings": [
+                {
+                    "file_path": f.file_path,
+                    "line_number": f.line_number,
+                    "rule_id": f.rule_id,
+                    "severity": f.severity,
+                } for f in s.findings
+            ]
+        })
+    return {"scans": result}
+
+
+@app.get("/repos/{repo_id}/scans")
+def get_repo_scans(repo_id: int, db: Session = Depends(get_db)):
+    scans = (
+        db.query(Scan)
+        .options(joinedload(Scan.findings))
+        .filter(Scan.repo_id == repo_id)
+        .order_by(Scan.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    repo = db.query(Repo).filter(Repo.repo_id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repo not found")
+        
+    result = []
+    for s in scans:
+        result.append({
+            "id": s.id,
+            "pr_number": s.pr_number,
+            "risk_score": s.risk_score,
+            "status": s.status,
+            "created_at": s.created_at,
+            "finding_count": len(s.findings),
+            "findings": [
+                {
+                    "file_path": f.file_path,
+                    "line_number": f.line_number,
+                    "rule_id": f.rule_id,
+                    "severity": f.severity,
+                } for f in s.findings
+            ]
+        })
+    return {"repo": {"name": repo.name, "owner": repo.owner}, "scans": result}
+
+
+@app.get("/repos/{repo_id}/memory")
+def get_repo_memory(repo_id: int, db: Session = Depends(get_db)):
+    memories = db.query(RepoMemory).filter(RepoMemory.repo_id == repo_id).all()
+    return {
+        "memory": [
+            {
+                "id": m.id,
+                "rule_id": m.rule_id,
+                "file_pattern": m.file_pattern,
+                "outcome": m.outcome,
+                "created_at": m.created_at,
+            } for m in memories
+        ]
+    }
+
+
+@app.delete("/memory/{id}")
+def delete_memory(id: int, db: Session = Depends(get_db)):
+    memory = db.query(RepoMemory).filter(RepoMemory.id == id).first()
+    if not memory:
+        raise HTTPException(status_code=404, detail="Memory rule not found")
+    
+    db.delete(memory)
+    db.commit()
+    return {"status": "success"}
 
 
 @app.post("/webhook")
