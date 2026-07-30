@@ -15,8 +15,8 @@ export default function RepoDetail() {
     if (!repoId) return;
     
     Promise.all([
-      fetch(`http://localhost:8000/repos/${repoId}/scans`).then(res => res.json()),
-      fetch(`http://localhost:8000/repos/${repoId}/memory`).then(res => res.json())
+      fetch(`${import.meta.env.VITE_API_URL}/repos/${repoId}/scans`).then(res => res.json()),
+      fetch(`${import.meta.env.VITE_API_URL}/repos/${repoId}/memory`).then(res => res.json())
     ]).then(([scansData, memoryData]) => {
       setScans(scansData.scans || []);
       if (scansData.repo) setRepoInfo(scansData.repo);
@@ -30,7 +30,7 @@ export default function RepoDetail() {
 
   const handleDeleteMemory = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:8000/memory/${id}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/memory/${id}`, {
         method: 'DELETE'
       });
       if (res.ok) {

@@ -1,0 +1,49 @@
+services:
+  # Redis for Celery message broker
+  - type: redis
+    name: probe-redis
+    ipAllowList: []
+    plan: free
+    maxmemoryPolicy: noeviction
+
+  # FastAPI Backend
+  - type: web
+    name: probe-api
+    env: python
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: probe-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: probe-redis
+          property: connectionString
+      # Other variables will be set manually in the dashboard
+      - key: VERIFY_GITHUB_WEBHOOKS
+        value: "true"
+
+  # Celery Worker
+  - type: worker
+    name: probe-worker
+    env: python
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && celery -A app.tasks worker --loglevel=info"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: probe-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: probe-redis
+          property: connectionString
+
+databases:
+  - name: probe-db
+    databaseName: probe
+    user: probe_user
