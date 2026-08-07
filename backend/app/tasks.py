@@ -53,6 +53,7 @@ def run_scan(
         post_review,
     )
     from app.scanner import scan_code
+    from app.scanner.scope import build_scan_scopes
 
     logger.info(f"[*] Starting run_scan task for scan {scan_id}")
     db = SessionLocal()
@@ -123,8 +124,9 @@ def run_scan(
                     f"Failed to fetch content for {file_path}: {file_err}. Skipping file."
                 )
 
-        # 6. Run AST Scanner
-        raw_findings = scan_code(files_content, changed_lines)
+        # 6. Build diff-aware scan scope and run AST scanner
+        scan_scope = build_scan_scopes(files_content, changed_lines)
+        raw_findings = scan_code(files_content, scan_scope)
 
         # 7. Check suppression rule matches from RepoMemory
         suppression_rules = (

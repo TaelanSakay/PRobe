@@ -1,6 +1,8 @@
 import ast
 import re
-from typing import List, Dict, Set, Optional
+from typing import Set, Optional
+
+from app.scanner.scope import FileScanScope
 
 
 class PRobeVisitor(ast.NodeVisitor):
@@ -12,11 +14,14 @@ class PRobeVisitor(ast.NodeVisitor):
     - path-traversal
     """
 
-    def __init__(self, file_path: str, changed_lines: Set[int]):
-        self.file_path = file_path
-        self.changed_lines = changed_lines
+    def __init__(self, file_scope: FileScanScope):
+        self.file_path = file_scope.file_path
+        self.scan_lines = file_scope.scan_lines
+        self.scoped_function_names = file_scope.scoped_function_names
+        self.module_level_lines = file_scope.module_level_lines
         self.findings = []
         self.scope_stack = [{}]
+        self._function_nesting_depth = 0
 
         # Patterns for matching potential secrets
         self.secret_pattern = re.compile(
@@ -35,9 +40,9 @@ class PRobeVisitor(ast.NodeVisitor):
         confidence: str,
         description: str,
     ):
-        """Helper to append a finding if it occurred on a modified/added line."""
+        """Helper to append a finding if it occurred within the expanded scan scope."""
         line = getattr(node, "lineno", None)
-        if line is not None and line in self.changed_lines:
+        if line is not None and line in self.scan_lines:
             self.findings.append(
                 {
                     "file_path": self.file_path,
@@ -68,15 +73,40 @@ class PRobeVisitor(ast.NodeVisitor):
                 return scope[name]
         return None
 
+    def visit_Module(self, node: ast.Module) -> None:
+        for stmt in node.body:
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                self.visit(stmt)
+            elif stmt.lineno in self.module_level_lines:
+                self.visit(stmt)
+
+    def generic_visit(self, node: ast.AST) -> None:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if (
+                self._function_nesting_depth == 0
+                and node.name not in self.scoped_function_names
+            ):
+                return
+        super().generic_visit(node)
+
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        # Push new local scope
+        if (
+            self._function_nesting_depth == 0
+            and node.name not in self.scoped_function_names
+        ):
+            return
+
         local_scope = {}
         for param in node.args.args:
-            # Treat parameters as generic external dynamic inputs
             local_scope[param.arg] = ast.Name(id=param.arg, ctx=ast.Load())
         self.scope_stack.append(local_scope)
+        self._function_nesting_depth += 1
         self.generic_visit(node)
+        self._function_nesting_depth -= 1
         self.scope_stack.pop()
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self.visit_FunctionDef(node)  # type: ignore[arg-type]
 
     def visit_Assign(self, node: ast.Assign):
         # Track assignments in the current local scope
