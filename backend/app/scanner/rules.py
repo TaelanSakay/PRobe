@@ -1,7 +1,8 @@
 import ast
 import re
-from typing import Set, Optional
+from typing import Dict, Optional, Set
 
+from app.scanner.provenance import provenance_to_dict, trace_expression_origin
 from app.scanner.scope import FileScanScope
 
 
@@ -22,6 +23,7 @@ class PRobeVisitor(ast.NodeVisitor):
         self.findings = []
         self.scope_stack = [{}]
         self._function_nesting_depth = 0
+        self._current_params: Set[str] = set()
 
         # Patterns for matching potential secrets
         self.secret_pattern = re.compile(
@@ -39,21 +41,23 @@ class PRobeVisitor(ast.NodeVisitor):
         severity: str,
         confidence: str,
         description: str,
+        provenance: Optional[dict] = None,
     ):
         """Helper to append a finding if it occurred within the expanded scan scope."""
         line = getattr(node, "lineno", None)
         if line is not None and line in self.scan_lines:
-            self.findings.append(
-                {
-                    "file_path": self.file_path,
-                    "line_number": line,
-                    "rule_id": rule_id,
-                    "severity": severity,
-                    "confidence": confidence,
-                    "description": description,
-                    "fix_suggestion": self.get_default_fix(rule_id),
-                }
-            )
+            finding = {
+                "file_path": self.file_path,
+                "line_number": line,
+                "rule_id": rule_id,
+                "severity": severity,
+                "confidence": confidence,
+                "description": description,
+                "fix_suggestion": self.get_default_fix(rule_id),
+            }
+            if provenance is not None:
+                finding["provenance"] = provenance
+            self.findings.append(finding)
 
     def get_default_fix(self, rule_id: str) -> str:
         if rule_id == "hardcoded-secret":
@@ -72,6 +76,17 @@ class PRobeVisitor(ast.NodeVisitor):
             if name in scope:
                 return scope[name]
         return None
+
+    def _current_scope_map(self) -> Dict[str, ast.AST]:
+        return dict(self.scope_stack[-1]) if self.scope_stack else {}
+
+    def _trace_provenance(self, expr: ast.AST) -> dict:
+        trace = trace_expression_origin(
+            expr,
+            self._current_scope_map(),
+            self._current_params,
+        )
+        return provenance_to_dict(trace)
 
     def visit_Module(self, node: ast.Module) -> None:
         for stmt in node.body:
@@ -97,13 +112,18 @@ class PRobeVisitor(ast.NodeVisitor):
             return
 
         local_scope = {}
+        params: Set[str] = set()
         for param in node.args.args:
+            params.add(param.arg)
             local_scope[param.arg] = ast.Name(id=param.arg, ctx=ast.Load())
+        previous_params = self._current_params
+        self._current_params = params
         self.scope_stack.append(local_scope)
         self._function_nesting_depth += 1
         self.generic_visit(node)
         self._function_nesting_depth -= 1
         self.scope_stack.pop()
+        self._current_params = previous_params
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self.visit_FunctionDef(node)  # type: ignore[arg-type]
@@ -309,6 +329,7 @@ class PRobeVisitor(ast.NodeVisitor):
                         if not isinstance(first_arg, ast.Name)
                         else "medium",
                         description="User input is concatenated or interpolated directly into an execute() call, leading to SQL Injection.",
+                        provenance=self._trace_provenance(first_arg),
                     )
 
         # 2. Command Injection (os.system, eval, exec)
@@ -325,6 +346,7 @@ class PRobeVisitor(ast.NodeVisitor):
                     severity="high",
                     confidence="high",
                     description="User input passed directly to os.system() can lead to Command Injection.",
+                    provenance=self._trace_provenance(node.args[0]),
                 )
         elif isinstance(node.func, ast.Name) and node.func.id in ("eval", "exec"):
             if len(node.args) > 0 and self._is_dynamic_string(node.args[0]):
@@ -334,6 +356,7 @@ class PRobeVisitor(ast.NodeVisitor):
                     severity="high",
                     confidence="high",
                     description=f"Dynamic input passed to {node.func.id}() can execute arbitrary commands/code.",
+                    provenance=self._trace_provenance(node.args[0]),
                 )
 
         # 3. Command Injection (subprocess with shell=True)
@@ -347,6 +370,7 @@ class PRobeVisitor(ast.NodeVisitor):
                         severity="high",
                         confidence="high",
                         description=f"Dynamic command run with shell=True via {subp_name}() can lead to Command Injection.",
+                        provenance=self._trace_provenance(node.args[0]),
                     )
 
         # 4. Path Traversal (open, os.open)
@@ -372,6 +396,7 @@ class PRobeVisitor(ast.NodeVisitor):
                     severity="medium",
                     confidence="medium",
                     description="Unsanitized dynamic path used in file operations could lead to Path Traversal.",
+                    provenance=self._trace_provenance(path_arg),
                 )
 
         self.generic_visit(node)
