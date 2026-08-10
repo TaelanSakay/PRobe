@@ -19,6 +19,7 @@ class PRobeVisitor(ast.NodeVisitor):
         self.file_path = file_scope.file_path
         self.scan_lines = file_scope.scan_lines
         self.scoped_function_names = file_scope.scoped_function_names
+        self._local_function_names = file_scope.local_function_names
         self.module_level_lines = file_scope.module_level_lines
         self.findings = []
         self.scope_stack = [{}]
@@ -85,6 +86,7 @@ class PRobeVisitor(ast.NodeVisitor):
             expr,
             self._current_scope_map(),
             self._current_params,
+            self._local_function_names,
         )
         return provenance_to_dict(trace)
 

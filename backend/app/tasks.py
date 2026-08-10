@@ -128,13 +128,22 @@ def run_scan(
         scan_scope = build_scan_scopes(files_content, changed_lines)
         raw_findings = scan_code(files_content, scan_scope)
 
+        # 6b. Optionally review findings with Claude reviewer (fail-open)
+        try:
+            from app.reviewer.claude import review_findings_with_claude
+
+            reviewed_findings = review_findings_with_claude(raw_findings, files_content)
+        except Exception as review_err:
+            logger.exception(f"Reviewer integration failed: {review_err}. Failing open.")
+            reviewed_findings = raw_findings
+
         # 7. Check suppression rule matches from RepoMemory
         suppression_rules = (
             db.query(RepoMemory).filter(RepoMemory.repo_id == scan.repo_id).all()
         )
 
         filtered_findings = []
-        for finding in raw_findings:
+        for finding in reviewed_findings:
             is_suppressed = False
             for rule in suppression_rules:
                 if rule.rule_id == finding["rule_id"]:

@@ -18,11 +18,12 @@ def _parse_expr(source: str) -> ast.AST:
     return stmt.value
 
 
-def _trace(source: str, scope_map=None, params=None, max_depth=20):
+def _trace(source: str, scope_map=None, params=None, local_function_names=None, max_depth=20):
     return trace_expression_origin(
         _parse_expr(source),
         scope_map or {},
         params or set(),
+        local_function_names=local_function_names,
         max_depth=max_depth,
     )
 
@@ -75,7 +76,7 @@ def test_local_variable_from_hardcoded():
 def test_local_variable_from_helper_stays_local_computed():
     helper_call = ast.parse("some_helper()").body[0].value  # type: ignore[attr-defined]
     scope_map = {"x": helper_call}
-    trace = _trace("x", scope_map=scope_map)
+    trace = _trace("x", scope_map=scope_map, local_function_names={"some_helper"})
     assert trace.origin == InputOrigin.LOCAL_COMPUTED
     assert trace.confidence == "medium"
     assert any("variable 'x'" in step for step in trace.path)
@@ -99,14 +100,42 @@ def test_fstring_worst_case_function_arg():
 def test_local_helper_function_boundary():
     helper_call = ast.parse("helper()").body[0].value  # type: ignore[attr-defined]
     scope_map = {"value": helper_call}
-    trace = _trace("value", scope_map=scope_map)
+    trace = _trace("value", scope_map=scope_map, local_function_names={"helper"})
     assert trace.origin == InputOrigin.LOCAL_COMPUTED
     assert trace.confidence == "medium"
     assert any("function boundary" in note for note in trace.notes)
 
-    direct_trace = _trace("helper()")
+    direct_trace = _trace("helper()", local_function_names={"helper"})
     assert direct_trace.origin == InputOrigin.LOCAL_COMPUTED
     assert any("function boundary" in note for note in direct_trace.notes)
+
+
+def test_imported_bare_name_call_traces_through_arguments():
+    expr = ast.parse("join(a, b)").body[0].value  # type: ignore[attr-defined]
+    scope_map = {
+        "a": ast.Name(id="user_input", ctx=ast.Load()),
+        "b": ast.Constant(value="file.txt"),
+    }
+    trace = trace_expression_origin(
+        expr,
+        scope_map,
+        {"user_input"},
+        local_function_names={"helper"},
+    )
+    assert trace.origin == InputOrigin.FUNCTION_ARG
+    assert not any("local function" in note for note in trace.notes)
+
+
+def test_dotted_attribute_call_does_not_use_local_function_heuristic():
+    expr = ast.parse("json.loads(user_input)").body[0].value  # type: ignore[attr-defined]
+    trace = trace_expression_origin(
+        expr,
+        {},
+        {"user_input"},
+        local_function_names={"loads"},
+    )
+    assert trace.origin == InputOrigin.FUNCTION_ARG
+    assert not any("local function" in note for note in trace.notes)
 
 
 def test_max_depth_returns_unknown_without_crashing():

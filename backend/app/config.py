@@ -1,6 +1,14 @@
 import os
 from typing import Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict
+
+try:
+    from pydantic_settings import BaseSettings, SettingsConfigDict
+except Exception:
+    # Minimal fallback for test environments where pydantic_settings isn't installed.
+    class BaseSettings:
+        pass
+
+    SettingsConfigDict = dict
 
 
 class Settings(BaseSettings):
@@ -20,6 +28,10 @@ class Settings(BaseSettings):
 
     # LLM Configuration
     ANTHROPIC_API_KEY: Optional[str] = None
+    # Claude review settings
+    CLAUDE_MODEL_NAME: str = "claude-v1"  # default compact model
+    CLAUDE_TIMEOUT: int = 15
+    CLAUDE_MAX_FINDINGS_PER_CALL: int = 10
 
     model_config = SettingsConfigDict(
         env_file=[".env", "../.env"],

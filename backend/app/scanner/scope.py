@@ -29,6 +29,7 @@ class FileScanScope:
     functions: List[FunctionScope]
     module_level_lines: Set[int] = field(default_factory=set)
     scoped_function_names: Set[str] = field(default_factory=set)
+    local_function_names: Set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -112,6 +113,23 @@ def _find_simple_callers(
 
     CallFinder().visit(tree)
     return callers
+
+
+def collect_function_names(tree: ast.AST) -> Set[str]:
+    """Collect every locally-defined function name in the file."""
+    names: Set[str] = set()
+
+    class FunctionNameCollector(ast.NodeVisitor):
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            names.add(node.name)
+            self.generic_visit(node)
+
+        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+            names.add(node.name)
+            self.generic_visit(node)
+
+    FunctionNameCollector().visit(tree)
+    return names
 
 
 def _build_file_scope(
@@ -208,6 +226,7 @@ def _build_file_scope(
         functions=list(scoped.values()),
         module_level_lines=module_level_lines,
         scoped_function_names=set(scoped.keys()),
+        local_function_names=collect_function_names(tree),
     )
 
 

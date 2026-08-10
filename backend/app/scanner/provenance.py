@@ -193,10 +193,10 @@ def _call_display_name(node: ast.Call) -> str:
     return "callable"
 
 
-def _is_local_function_call(node: ast.Call) -> bool:
+def _is_local_function_call(node: ast.Call, local_function_names: Set[str]) -> bool:
     func = node.func
     if isinstance(func, ast.Name):
-        return func.id not in _BUILTIN_CALL_NAMES
+        return func.id in local_function_names
     return False
 
 
@@ -213,6 +213,7 @@ def trace_expression_origin(
     expr: ast.AST,
     scope_map: Dict[str, ast.AST],
     params: Set[str],
+    local_function_names: Optional[Set[str]] = None,
     max_depth: int = 20,
 ) -> ProvenanceTrace:
     """
@@ -222,6 +223,8 @@ def trace_expression_origin(
     ``params`` is the set of enclosing function parameter names.
     """
     visited_nodes: Set[int] = set()
+
+    local_function_names = local_function_names or set()
 
     def trace(node: ast.AST, depth: int, path: List[str]) -> ProvenanceTrace:
         if depth > max_depth:
@@ -334,7 +337,7 @@ def trace_expression_origin(
                     confidence="high",
                     path=path + ["request input call"],
                 )
-            if _is_local_function_call(node):
+            if _is_local_function_call(node, local_function_names):
                 callee = _call_display_name(node)
                 return ProvenanceTrace(
                     origin=InputOrigin.LOCAL_COMPUTED,
