@@ -148,6 +148,130 @@ def test_max_depth_returns_unknown_without_crashing():
     assert trace.notes
 
 
+def test_one_hop_interprocedural_resolution_binds_parameter_to_call_arg():
+    module = ast.parse(
+        textwrap.dedent(
+            """
+            def helper(x):
+                return x
+            """
+        )
+    )
+    helper_func = module.body[0]  # type: ignore[attr-defined]
+    expr = ast.parse("y").body[0].value  # type: ignore[attr-defined]
+    scope_map = {
+        "y": ast.parse("helper(request.args.get('id'))").body[0].value  # type: ignore[attr-defined]
+    }
+    trace = trace_expression_origin(
+        expr,
+        scope_map,
+        set(),
+        local_function_names={"helper"},
+        function_index={"helper": helper_func},
+    )
+
+    assert trace.origin == InputOrigin.REQUEST_INPUT
+    assert any("one-hop" in note for note in trace.notes)
+
+
+def test_helper_with_multiple_returns_uses_worst_case_origin():
+    module = ast.parse(
+        textwrap.dedent(
+            """
+            def helper(x):
+                if True:
+                    return x
+                return "fallback"
+            """
+        )
+    )
+    helper_func = module.body[0]  # type: ignore[attr-defined]
+    expr = ast.parse("helper(user_input)").body[0].value  # type: ignore[attr-defined]
+    trace = trace_expression_origin(
+        expr,
+        {},
+        {"user_input"},
+        local_function_names={"helper"},
+        function_index={"helper": helper_func},
+    )
+
+    assert trace.origin == InputOrigin.FUNCTION_ARG
+
+
+def test_helper_with_no_return_contributes_unknown():
+    module = ast.parse(
+        textwrap.dedent(
+            """
+            def helper(x):
+                print(x)
+            """
+        )
+    )
+    helper_func = module.body[0]  # type: ignore[attr-defined]
+    expr = ast.parse("helper(user_input)").body[0].value  # type: ignore[attr-defined]
+    trace = trace_expression_origin(
+        expr,
+        {},
+        {"user_input"},
+        local_function_names={"helper"},
+        function_index={"helper": helper_func},
+    )
+
+    assert trace.origin == InputOrigin.UNKNOWN
+    assert trace.notes
+
+
+def test_two_hop_interprocedural_trace_stops_at_second_boundary():
+    module = ast.parse(
+        textwrap.dedent(
+            """
+            def helper(x):
+                return other(x)
+
+            def other(y):
+                return y
+            """
+        )
+    )
+    function_index = {
+        node.name: node for node in module.body if isinstance(node, ast.FunctionDef)
+    }
+    expr = ast.parse("helper(user_input)").body[0].value  # type: ignore[attr-defined]
+    trace = trace_expression_origin(
+        expr,
+        {},
+        {"user_input"},
+        local_function_names={"helper", "other"},
+        function_index=function_index,
+    )
+
+    assert trace.origin == InputOrigin.LOCAL_COMPUTED
+    assert any("function boundary" in note for note in trace.notes)
+
+
+def test_unmapped_vararg_parameter_falls_back_to_unknown():
+    module = ast.parse(
+        textwrap.dedent(
+            """
+            def helper(*args):
+                return args[0]
+            """
+        )
+    )
+    helper_func = module.body[0]  # type: ignore[attr-defined]
+    expr = ast.parse("helper(request.args.get('id'))").body[0].value  # type: ignore[attr-defined]
+    trace = trace_expression_origin(
+        expr,
+        {},
+        set(),
+        local_function_names={"helper"},
+        function_index={"helper": helper_func},
+    )
+
+    assert trace.origin == InputOrigin.UNKNOWN
+    assert any("could not be mapped" in note for note in trace.notes)
+
+
 def test_provenance_to_dict_serializes_enum():
     trace = _trace('"literal"')
     payload = provenance_to_dict(trace)

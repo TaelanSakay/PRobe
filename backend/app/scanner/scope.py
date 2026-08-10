@@ -30,6 +30,7 @@ class FileScanScope:
     module_level_lines: Set[int] = field(default_factory=set)
     scoped_function_names: Set[str] = field(default_factory=set)
     local_function_names: Set[str] = field(default_factory=set)
+    function_index: Dict[str, ast.AST] = field(default_factory=dict)
 
 
 @dataclass
@@ -227,6 +228,11 @@ def _build_file_scope(
         module_level_lines=module_level_lines,
         scoped_function_names=set(scoped.keys()),
         local_function_names=collect_function_names(tree),
+        function_index={
+            node.name: node
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        },
     )
 
 
