@@ -141,8 +141,10 @@ def _is_request_like_root(node: ast.AST) -> bool:
 
 
 def _is_request_input_expr(node: ast.AST) -> bool:
+    request_input_attrs = {"args", "form", "json", "files", "headers", "cookies", "values", "data", "GET", "POST", "FILES"}
+
     if isinstance(node, ast.Attribute):
-        if node.attr in ("args", "form", "json", "GET", "POST", "FILES", "data"):
+        if node.attr in request_input_attrs:
             return _is_request_like_root(node.value)
         if node.attr in ("get", "getlist") and _is_request_input_expr(node.value):
             return True
@@ -499,13 +501,16 @@ def trace_expression_origin(
                         for param_name, bound_value in param_bindings.items():
                             callee_scope[param_name] = bound_value
 
+                        combined_scope_map = dict(active_scope_map)
+                        combined_scope_map.update(callee_scope)
+
                         return_traces.append(
                             trace(
                                 ret.value,
                                 depth + 1,
                                 path + [f"return from '{callee}'"],
                                 interprocedural_depth=interprocedural_depth + 1,
-                                scope_map_override=callee_scope,
+                                scope_map_override=combined_scope_map,
                                 params_override=active_params,
                             )
                         )

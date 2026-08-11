@@ -1,0 +1,195 @@
+{
+  "fixtures": [
+    {
+      "fixture": "benchmark/fixtures/vulnerable/command_injection_subprocess.py",
+      "expected_label": "true_positive",
+      "expected_rule": "command-injection",
+      "rule_fired": true,
+      "provenance_origin": "request_input",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "positive"
+    },
+    {
+      "fixture": "benchmark/fixtures/vulnerable/eval_middleware.py",
+      "expected_label": "true_positive",
+      "expected_rule": "command-injection",
+      "rule_fired": true,
+      "provenance_origin": "request_input",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "positive"
+    },
+    {
+      "fixture": "benchmark/fixtures/vulnerable/eval_request.py",
+      "expected_label": "true_positive",
+      "expected_rule": "command-injection",
+      "rule_fired": true,
+      "provenance_origin": "request_input",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "positive"
+    },
+    {
+      "fixture": "benchmark/fixtures/vulnerable/path_traversal_open.py",
+      "expected_label": "true_positive",
+      "expected_rule": "path-traversal",
+      "rule_fired": true,
+      "provenance_origin": "request_input",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "positive"
+    },
+    {
+      "fixture": "benchmark/fixtures/vulnerable/path_traversal_upload.py",
+      "expected_label": "true_positive",
+      "expected_rule": "path-traversal",
+      "rule_fired": true,
+      "provenance_origin": "request_input",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "positive"
+    },
+    {
+      "fixture": "benchmark/fixtures/vulnerable/sql_injection_execute.py",
+      "expected_label": "true_positive",
+      "expected_rule": "sql-injection",
+      "rule_fired": true,
+      "provenance_origin": "request_input",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "positive"
+    },
+    {
+      "fixture": "benchmark/fixtures/vulnerable/sql_injection_format.py",
+      "expected_label": "true_positive",
+      "expected_rule": "sql-injection",
+      "rule_fired": true,
+      "provenance_origin": "request_input",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "positive"
+    },
+    {
+      "fixture": "benchmark/fixtures/vulnerable/subprocess_shell_true.py",
+      "expected_label": "true_positive",
+      "expected_rule": "command-injection",
+      "rule_fired": true,
+      "provenance_origin": "request_input",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "positive"
+    },
+    {
+      "fixture": "benchmark/fixtures/safe/command_injection_config.py",
+      "expected_label": "false_positive",
+      "expected_rule": "command-injection",
+      "rule_fired": true,
+      "provenance_origin": "config",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "negative"
+    },
+    {
+      "fixture": "benchmark/fixtures/safe/command_injection_hardcoded.py",
+      "expected_label": "false_positive",
+      "expected_rule": "command-injection",
+      "rule_fired": false,
+      "provenance_origin": "none",
+      "rule_only_classification": "negative",
+      "provenance_informed_classification": "negative"
+    },
+    {
+      "fixture": "benchmark/fixtures/safe/eval_config.py",
+      "expected_label": "false_positive",
+      "expected_rule": "command-injection",
+      "rule_fired": true,
+      "provenance_origin": "config",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "negative"
+    },
+    {
+      "fixture": "benchmark/fixtures/safe/eval_helper_one_hop.py",
+      "expected_label": "true_positive",
+      "expected_rule": "command-injection",
+      "rule_fired": true,
+      "provenance_origin": "request_input",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "positive"
+    },
+    {
+      "fixture": "benchmark/fixtures/safe/eval_helper_one_hop_hardcoded.py",
+      "expected_label": "false_positive",
+      "expected_rule": "command-injection",
+      "rule_fired": true,
+      "provenance_origin": "hardcoded",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "negative"
+    },
+    {
+      "fixture": "benchmark/fixtures/safe/path_traversal_basename.py",
+      "expected_label": "false_positive",
+      "expected_rule": "path-traversal",
+      "rule_fired": false,
+      "provenance_origin": "none",
+      "rule_only_classification": "negative",
+      "provenance_informed_classification": "negative"
+    },
+    {
+      "fixture": "benchmark/fixtures/safe/path_traversal_helper.py",
+      "expected_label": "false_positive",
+      "expected_rule": "path-traversal",
+      "rule_fired": true,
+      "provenance_origin": "hardcoded",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "negative"
+    },
+    {
+      "fixture": "benchmark/fixtures/safe/path_traversal_sanitized.py",
+      "expected_label": "false_positive",
+      "expected_rule": "path-traversal",
+      "rule_fired": false,
+      "provenance_origin": "none",
+      "rule_only_classification": "negative",
+      "provenance_informed_classification": "negative"
+    },
+    {
+      "fixture": "benchmark/fixtures/safe/sql_injection_hardcoded.py",
+      "expected_label": "false_positive",
+      "expected_rule": "sql-injection",
+      "rule_fired": true,
+      "provenance_origin": "hardcoded",
+      "rule_only_classification": "positive",
+      "provenance_informed_classification": "negative"
+    },
+    {
+      "fixture": "benchmark/fixtures/safe/sql_injection_safe_format.py",
+      "expected_label": "false_positive",
+      "expected_rule": "sql-injection",
+      "rule_fired": false,
+      "provenance_origin": "none",
+      "rule_only_classification": "negative",
+      "provenance_informed_classification": "negative"
+    },
+    {
+      "fixture": "benchmark/fixtures/safe/subprocess_shell_true_safe.py",
+      "expected_label": "false_positive",
+      "expected_rule": "command-injection",
+      "rule_fired": false,
+      "provenance_origin": "none",
+      "rule_only_classification": "negative",
+      "provenance_informed_classification": "negative"
+    }
+  ],
+  "metrics": {
+    "rule_only": {
+      "precision": 0.6428571428571429,
+      "recall": 1.0,
+      "false_positive_rate": 0.5,
+      "tp": 9,
+      "fp": 5,
+      "fn": 0,
+      "tn": 5
+    },
+    "provenance_informed": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0,
+      "tp": 9,
+      "fp": 0,
+      "fn": 0,
+      "tn": 10
+    }
+  }
+}

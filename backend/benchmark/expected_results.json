@@ -1,0 +1,78 @@
+{
+  "benchmark/fixtures/vulnerable/command_injection_subprocess.py": {
+    "label": "true_positive",
+    "rule": "command-injection"
+  },
+  "benchmark/fixtures/vulnerable/sql_injection_format.py": {
+    "label": "true_positive",
+    "rule": "sql-injection"
+  },
+  "benchmark/fixtures/vulnerable/eval_request.py": {
+    "label": "true_positive",
+    "rule": "command-injection"
+  },
+  "benchmark/fixtures/vulnerable/path_traversal_open.py": {
+    "label": "true_positive",
+    "rule": "path-traversal"
+  },
+  "benchmark/fixtures/vulnerable/subprocess_shell_true.py": {
+    "label": "true_positive",
+    "rule": "command-injection"
+  },
+  "benchmark/fixtures/vulnerable/sql_injection_execute.py": {
+    "label": "true_positive",
+    "rule": "sql-injection"
+  },
+  "benchmark/fixtures/vulnerable/path_traversal_upload.py": {
+    "label": "true_positive",
+    "rule": "path-traversal"
+  },
+  "benchmark/fixtures/vulnerable/eval_middleware.py": {
+    "label": "true_positive",
+    "rule": "command-injection"
+  },
+  "benchmark/fixtures/safe/command_injection_hardcoded.py": {
+    "label": "false_positive",
+    "rule": "command-injection"
+  },
+  "benchmark/fixtures/safe/sql_injection_hardcoded.py": {
+    "label": "false_positive",
+    "rule": "sql-injection"
+  },
+  "benchmark/fixtures/safe/eval_config.py": {
+    "label": "false_positive",
+    "rule": "command-injection"
+  },
+  "benchmark/fixtures/safe/path_traversal_sanitized.py": {
+    "label": "false_positive",
+    "rule": "path-traversal"
+  },
+  "benchmark/fixtures/safe/subprocess_shell_true_safe.py": {
+    "label": "false_positive",
+    "rule": "command-injection"
+  },
+  "benchmark/fixtures/safe/sql_injection_safe_format.py": {
+    "label": "false_positive",
+    "rule": "sql-injection"
+  },
+  "benchmark/fixtures/safe/path_traversal_helper.py": {
+    "label": "false_positive",
+    "rule": "path-traversal"
+  },
+  "benchmark/fixtures/safe/eval_helper_one_hop.py": {
+    "label": "true_positive",
+    "rule": "command-injection"
+  },
+  "benchmark/fixtures/safe/eval_helper_one_hop_hardcoded.py": {
+    "label": "false_positive",
+    "rule": "command-injection"
+  },
+  "benchmark/fixtures/safe/command_injection_config.py": {
+    "label": "false_positive",
+    "rule": "command-injection"
+  },
+  "benchmark/fixtures/safe/path_traversal_basename.py": {
+    "label": "false_positive",
+    "rule": "path-traversal"
+  }
+}

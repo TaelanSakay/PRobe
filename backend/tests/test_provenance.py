@@ -53,6 +53,48 @@ def test_request_args_get():
     assert trace_through_var.origin == InputOrigin.REQUEST_INPUT
 
 
+@pytest.mark.parametrize(
+    "expr_source",
+    [
+        "request.files.get('file')",
+        "request.headers.get('X-Job')",
+        "request.cookies.get('session')",
+        "request.values.get('id')",
+    ],
+)
+def test_request_object_accessors_are_request_input(expr_source):
+    trace = _trace(expr_source)
+    assert trace.origin == InputOrigin.REQUEST_INPUT
+    assert trace.confidence == "high"
+
+
+def test_one_hop_interprocedural_resolution_uses_caller_scope_for_bound_argument():
+    module = ast.parse(
+        textwrap.dedent(
+            """
+            def helper(x):
+                return x
+            """
+        )
+    )
+    helper_func = module.body[0]  # type: ignore[attr-defined]
+    expr = ast.parse("payload").body[0].value  # type: ignore[attr-defined]
+    scope_map = {
+        "user_input": ast.parse("request.args.get('expr')").body[0].value,  # type: ignore[attr-defined]
+        "payload": ast.parse("helper(user_input)").body[0].value,  # type: ignore[attr-defined]
+    }
+    trace = trace_expression_origin(
+        expr,
+        scope_map,
+        set(),
+        local_function_names={"helper"},
+        function_index={"helper": helper_func},
+    )
+
+    assert trace.origin == InputOrigin.REQUEST_INPUT
+    assert any("one-hop" in note for note in trace.notes)
+
+
 def test_os_getenv_config():
     trace = _trace("os.getenv('DATABASE_URL')")
     assert trace.origin == InputOrigin.CONFIG
